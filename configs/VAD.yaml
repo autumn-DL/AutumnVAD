@@ -1,0 +1,10 @@
+train_data_index_path:
+  - gd/data_train.tsv
+val_data_index_path:
+  - gd/data_val.tsv
+
+misc_data_index_path:
+  - gd/data_train.tsv
+
+binary_index_name: data
+binary_index_dir: data
