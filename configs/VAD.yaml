@@ -1,10 +1,140 @@
 train_data_index_path:
-  - gd/data_train.tsv
+  - sc.tsv
 val_data_index_path:
-  - gd/data_val.tsv
+  - sc1.tsv
 
 misc_data_index_path:
-  - gd/data_train.tsv
+  - mus.tsv
 
 binary_index_name: data
 binary_index_dir: data
+pre_data_type: VAD
+
+pl_trainer_accelerator: 'auto'
+pl_trainer_devices: 'auto'
+#pl_trainer_precision: '32-true'
+pl_trainer_precision: 'bf16'
+pl_trainer_num_nodes: 1
+seed: 114514
+task_cls: trainCLS.VADCLS.VADCLS
+model_arg:
+  encoder_conform_dim: 512
+  encoder_conform_kernel_size: 31
+  encoder_conform_ffn_latent_drop: 0.1
+  encoder_conform_ffn_out_drop: 0.1
+  num_layers: 6
+
+pl_trainer_strategy:
+  name: auto
+  process_group_backend: nccl
+  find_unused_parameters: false
+nccl_p2p: true
+
+audio_sample_rate: 44100
+#audio_num_mel_bins: 128
+audio_num_mel_bins: 80
+hop_size: 882            # Hop size.
+fft_size: 2048           # FFT size.
+win_size: 2048           # FFT size.
+fmin: 40
+fmax: 8000
+
+max_mel_farms: null
+rms_win_size: 2048
+DB_rms: -45
+
+add_music_prob: 0.8
+add_music: true
+volume_aug_prob: 0.5
+volume_aug: true
+key_shift_aug_prob: 0.1
+key_shift_aug: true
+#noise_aug_prob: 0.8
+use_noise_aug: true
+noise_aug:
+  use_noise_aug_probability: 0.2
+  noise_config:
+    - NoiseType: gaussian
+      probability: 0.1
+      NoiseArgs:
+        - name: mean
+          value: 0
+          min: -0.01
+          max: 0.01
+          UseRandomValue: true
+        - name: std
+          value: 1
+          min: 0.5
+          max: 1.2
+          UseRandomValue: true
+        - name: noise_level
+          value: 0.0001
+          min: 0.001
+          max: 0.01
+          UseRandomValue: true
+    - NoiseType: pink_noise
+      probability: 0.1
+      NoiseArgs:
+        - name: noise_level
+          value: 0.001
+          min: 0.0005
+          max: 0.01
+          UseRandomValue: true
+
+      # {'NoiseType': 1, 'probability': 0.1,
+      #  'NoiseArgs': [{'name': 'xxx', 'value': 0.2, 'min': 0.02, 'max': 0.1, 'UseRandomValue': True}]}
+    #{'name': 'xxx', 'value': 0.2, 'min': 0.02, 'max': 0.1, 'UseRandomValue': True}
+
+optimizer_args:
+  optimizer_cls: torch.optim.AdamW
+  lr: 0.0001
+  beta1: 0.9
+  beta2: 0.98
+  weight_decay: 0
+
+lr_scheduler_args:
+  scheduler_cls: lr_scheduler.scheduler.WarmupLR
+  warmup_steps: 5000
+  min_lr: 0.00001
+
+
+
+max_key_shift: 2
+min_key_shift: 0.8
+
+use_mel_speed_shift: true
+mel_speed_shift_prob: 0.1
+mel_speed_shift_max: 2
+mel_speed_shift_min: 0.5
+
+use_mel_key_shift: true
+mel_key_shift_prob: 0.1
+mel_key_shift_min: -12
+mel_key_shift_max: 12
+music_mix_min: 0.3
+music_mix_max: 0.9
+
+
+
+grad_accum_steps: 1
+max_update: 9999990
+val_step: 40000
+keep_ckpt_num: 5
+progress_bar_type: tqdm #tqdm #rich
+batch_size: 32
+train_dataloader_prefetch_factor: 4
+num_train_dataloader_workers: 6
+val_dataloader_prefetch_factor: 2
+num_val_dataloader_workers: 2
+
+finetune_enabled: false
+finetune_ckpt_path: null
+finetune_ignored_params: []
+
+
+finetune_strict_shapes: true
+
+freezing_enabled: false
+frozen_params: []
+
+pad_strategy: middle #min max middle

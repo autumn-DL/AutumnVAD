@@ -14,6 +14,7 @@ from model_trainer.basic_lib.config_util import get_config  # , backup_config
 from model_trainer.basic_lib.find_last_checkpoint import get_latest_checkpoint_path
 from model_trainer.basic_lib.fine_trun_ckpt_loader import load_finetune_ckpt, load_pre_train_model, unfreeze_all_params, \
     freeze_params
+from model_trainer.basic_lib.get_strategy import get_strategy
 from model_trainer.trainer import norm_trainer
 
 torch.multiprocessing.set_sharing_strategy(os.getenv('TORCH_SHARE_STRATEGY', 'file_system'))
@@ -58,7 +59,13 @@ def train(config, exp_name, work_dir):
         accelerator=config['pl_trainer_accelerator'],
         devices=config['pl_trainer_devices'],
         precision=config['pl_trainer_precision'],
-        strategy='auto',
+        strategy=get_strategy(
+            config['pl_trainer_devices'],
+            config['pl_trainer_num_nodes'],
+            config['pl_trainer_accelerator'],
+            config['pl_trainer_strategy'],
+            config['pl_trainer_precision'],
+        ),
 
         loggers=TensorBoardLogger(
             save_dir=str(work_dir),

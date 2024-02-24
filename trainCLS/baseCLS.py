@@ -3,8 +3,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 import lightning as PL
 
-from libs.build_model import build_optimizer, build_scheduler
+# from libs.build_model import build_optimizer, build_scheduler
 import torch.utils.data
+
+from model_trainer.basic_lib.build_model import build_optimizer, build_scheduler
 
 
 class BasicCLS(PL.LightningModule):
@@ -16,8 +18,10 @@ class BasicCLS(PL.LightningModule):
         self.global_epoch = 0
         self.train_dataset = None
         self.val_dataset = None
+        self.grad_norm=0
         self.lrs=None
-
+    def before_opt(self):
+        pass
     def sync_step(self, global_step: int, forward_step: int, global_epoch: int):
         self.opt_step = global_step
         self.forward_step = forward_step
