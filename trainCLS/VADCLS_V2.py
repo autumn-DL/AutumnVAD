@@ -12,14 +12,15 @@ from lib.plot import spec_probs_to_figure
 class VADCLS(BasicCLS):
     def __init__(self, config):
         super().__init__(config=config)
-        self.model = CVNT(config,output_size=2)
+        self.model = CVNT(config,output_size=1)
 
         self.train_dataset = VAD_DataSet_norm(config=config, infer=False)
         self.val_dataset = VAD_DataSet_norm(config=config, infer=True)
-        self.loss = torch.nn.CrossEntropyLoss()
+        self.loss = torch.nn.BCEWithLogitsLoss()
 
     def forward(self, x, mask=None):
         x = self.model(x, mask)
+
         return x
 
     # def before_opt(self):
@@ -34,7 +35,7 @@ class VADCLS(BasicCLS):
         if batch['mask'] is not None:
             batch['mask']=(batch['mask']==0)
         P = self.forward(batch['mel'], batch['mask'])
-        losses = self.loss(P, batch['target'])
+        losses = self.loss(P, batch['target'].float()[:,None,:])
         lr = self.lrs.get_last_lr()[0]
         if self.opt_step % 50 == 0:
             tb_log = {}
@@ -52,12 +53,14 @@ class VADCLS(BasicCLS):
 
     def validation_step(self, batch, batch_idx: int):
         P = self.forward(batch['mel'], batch['mask'])
-        losses = self.loss(P, batch['target'])
+        losses = self.loss(P, batch['target'].float()[:,None,:])
 
 
         name_prefix = 'mel'
+        P=torch.sigmoid(P)
+        P=(P>self.config['prob_voice']).long()[0].cpu()[0]
         fig = spec_probs_to_figure(spec=batch['mel'][0].cpu(), prob_gt=batch['target'].long()[0].cpu(),
-                                   prob_pred=P.argmax(dim=1).long()[0].cpu())
+                                   prob_pred=P)
         self.logger.experiment.add_figure(f'{name_prefix}_{batch_idx}', fig, global_step=self.opt_step)
 
         return {'val_loss': losses}

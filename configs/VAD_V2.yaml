@@ -19,7 +19,7 @@ pl_trainer_devices: 'auto'
 pl_trainer_precision: 'bf16'
 pl_trainer_num_nodes: 1
 seed: 114514
-task_cls: trainCLS.VADCLS.VADCLS
+task_cls: trainCLS.VADCLS_V2.VADCLS
 model_arg:
   encoder_conform_dim: 512
   encoder_conform_kernel_size: 31
@@ -90,15 +90,15 @@ noise_aug:
 
 optimizer_args:
   optimizer_cls: torch.optim.AdamW
-  lr: 0.0001
+  lr: 0.0006
   beta1: 0.9
   beta2: 0.98
   weight_decay: 0
 
 lr_scheduler_args:
   scheduler_cls: lr_scheduler.scheduler.WarmupLR
-  warmup_steps: 5000
-  min_lr: 0.00001
+  warmup_steps: 1000
+  min_lr: 0.0001
 
 
 
@@ -114,19 +114,19 @@ use_mel_key_shift: true
 mel_key_shift_prob: 0.1
 mel_key_shift_min: -12
 mel_key_shift_max: 12
-music_mix_min: 0.3
-music_mix_max: 0.9
+music_mix_min: 0.55
+music_mix_max: 0.95
 
 use_empty_voice: true
-empty_voice_prob: 0.01
+empty_voice_prob: 0.05
 voice_volume_aug: true
-voice_volume_aug_prob: 0.5
+voice_volume_aug_prob: 0.1
 
 
 grad_accum_steps: 1
 max_update: 9999990
 val_step: 40000
-keep_ckpt_num: 5
+keep_ckpt_num: 8
 progress_bar_type: tqdm #tqdm #rich
 batch_size: 32
 train_dataloader_prefetch_factor: 4
@@ -145,6 +145,8 @@ freezing_enabled: false
 frozen_params: []
 
 pad_strategy: middle #min max middle
+
+prob_voice: 0.5
 
 
 

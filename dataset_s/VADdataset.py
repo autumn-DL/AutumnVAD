@@ -159,6 +159,12 @@ class VAD_DataSet_norm(Dataset):
         self.mel_key_shift_min = config['mel_key_shift_min']
         self.mel_key_shift_max = config['mel_key_shift_max']
 
+        self.use_empty_voice = config['use_empty_voice']
+        self.empty_voice_prob = config['empty_voice_prob']
+
+        self.voice_volume_aug_prob = config['voice_volume_aug_prob']
+        self.voice_volume_aug = config['voice_volume_aug']
+
     def pre_music(self,lens,music):
         ml=len(music)
         if lens>ml:
@@ -183,22 +189,32 @@ class VAD_DataSet_norm(Dataset):
 
         return voice
 
+
     def __getitem__(self, index):
         data_path = self.datapath[index]
         voice, sr_voice = torchaudio.load(data_path)
         voice=torch.unsqueeze(voice[0],0)
         if sr_voice != self.sr:
             voice = torchaudio.transforms.Resample(orig_freq=sr_voice, new_freq=self.sr)(voice)
-        if self.max_mel_farms is not  None:
-            voice=voice[:self.max_mel_farms*self.melhop]
+        if self.max_mel_farms is not  None and not self.infer:
+            Lvocie=len(voice[0])
+            start = np.random.randint(0, Lvocie - self.max_mel_farms*self.melhop)
+            voice=voice[:,start:start+self.max_mel_farms*self.melhop]
+            # voice=voice[:self.max_mel_farms*self.melhop]
+
         if self.key_shift_aug and random.random() < self.key_shift_aug_prob and not self.infer:
             key_s = random.uniform(self.min_key_shift, self.max_key_shift)
             voice = wav_aug(voice, self.hop_size, speed=key_s)
 
         RMSX = get_rms(voice[0], frame_length=self.rms_win,
                        hop_length=self.rms_hop, )
-
-        target = (RMSX < self.rmsa).long()
+        if self.voice_volume_aug and random.random() < self.voice_volume_aug_prob:
+            voice = self.volume_augmentation(voice)
+        if self.use_empty_voice and random.random() < self.empty_voice_prob:
+            voice = torch.randn_like(voice)*1e-5
+            target = torch.ones_like(RMSX).long()
+        else:
+            target = (RMSX < self.rmsa).long()
         if self.add_music and random.random() < self.add_music_prob:
             music_path = self.music_datapath[random.randint(0, self.music_len - 1)]
             rate = random.uniform(self.music_mix_min, self.music_mix_max)

@@ -418,6 +418,8 @@ class NormTrainer:
                 #         global_epoch=self.current_epoch
                 #     )
 
+                self.global_step += int(should_optim_step)
+                self.forward_step += 1
                 if self.get_state_step() % self.val_step == 0 and self.fabric.is_global_zero and not self.without_val:  # todo need add
                     if self.skip_val:
                         self.skip_val = False
@@ -426,8 +428,8 @@ class NormTrainer:
                         can_save = True
                 if self.fabric.is_global_zero and can_save:
                     self.save_checkpoint(self.state)
-                self.global_step += int(should_optim_step)
-                self.forward_step += 1
+                # self.global_step += int(should_optim_step)
+                # self.forward_step += 1
                 if hasattr(model, 'sync_step'):
                     model.sync_step(
                         global_step=self.global_step,

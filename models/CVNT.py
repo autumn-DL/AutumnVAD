@@ -48,7 +48,7 @@ class conform_blocke(nn.Module):
         x = self.ffn2(self.norm4(x)) + x
         return x
 class CVNT(nn.Module):
-    def __init__(self, config):
+    def __init__(self, config,output_size=2):
         super().__init__()
         self.config = config
         model_arg = config['model_arg']
@@ -60,7 +60,7 @@ class CVNT(nn.Module):
                                       ffn_out_drop=model_arg['encoder_conform_ffn_out_drop'],
 
                                       ) for _ in range(model_arg['num_layers'])])
-        self.outlinear = nn.Linear(model_arg['encoder_conform_dim'], 2)
+        self.outlinear = nn.Linear(model_arg['encoder_conform_dim'], output_size)
 
     def forward(self, x, mask=None, ):
         # x=torch.transpose(x,1,2)
@@ -71,6 +71,43 @@ class CVNT(nn.Module):
         x=self.outlinear(x)
         if mask is not None:
             x = x.masked_fill(~mask.unsqueeze(-1), 0)
+        x = torch.transpose(x, 1, 2)
+
+        return x
+
+class CVNT_BiGRU(nn.Module):
+    def __init__(self, config,output_size=2):
+        super().__init__()
+        self.config = config
+        model_arg = config['model_arg']
+        self.inlinear = nn.Linear(config['audio_num_mel_bins'], model_arg['encoder_conform_dim'])
+        self.enc=nn.ModuleList([conform_blocke(
+                                      dim=model_arg['encoder_conform_dim'],
+                                      kernel_size=model_arg['encoder_conform_kernel_size'],
+                                      ffn_latent_drop=model_arg['encoder_conform_ffn_latent_drop'],
+                                      ffn_out_drop=model_arg['encoder_conform_ffn_out_drop'],
+
+                                      ) for _ in range(model_arg['num_layers'])])
+        self.outlinear = nn.Linear(model_arg['encoder_conform_dim']*2, output_size)
+        self.outGRU=nn.GRU(model_arg['encoder_conform_dim'],model_arg['encoder_conform_dim'],num_layers=model_arg['GRU_lays'],bidirectional=True,batch_first=True)
+        self.use_final_norm = model_arg['use_final_norm']
+        if self.use_final_norm:
+            self.final_norm=nn.LayerNorm(model_arg['encoder_conform_dim'])
+
+    def forward(self, x, mask=None, ):
+        # x=torch.transpose(x,1,2)
+
+        x=self.inlinear(x)
+        for i in self.enc:
+            x = i(x, mask=mask)
+        if self.use_final_norm:
+            x=self.final_norm(x)
+        x=self.final_norm(x)
+        x, _ = self.outGRU(x)
+        x=self.outlinear(x)
+        if mask is not None:
+            x = x.masked_fill(~mask.unsqueeze(-1), 0)
+
         x = torch.transpose(x, 1, 2)
 
         return x
