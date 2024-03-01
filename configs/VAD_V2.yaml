@@ -23,9 +23,13 @@ task_cls: trainCLS.VADCLS_V2.VADCLS
 model_arg:
   encoder_conform_dim: 512
   encoder_conform_kernel_size: 31
-  encoder_conform_ffn_latent_drop: 0.1
-  encoder_conform_ffn_out_drop: 0.1
-  num_layers: 6
+  encoder_conform_ffn_latent_drop: 0.05
+  encoder_conform_ffn_out_drop: 0.05
+  num_layers: 8
+
+  use_final_norm: true
+  norm_type: pre_n
+  mel_scal: 8
 
 pl_trainer_strategy:
   name: auto
@@ -44,7 +48,7 @@ fmax: 8000
 
 max_mel_farms: null
 rms_win_size: 2048
-DB_rms: -45
+DB_rms: -50
 
 add_music_prob: 0.8
 add_music: true
@@ -90,20 +94,20 @@ noise_aug:
 
 optimizer_args:
   optimizer_cls: torch.optim.AdamW
-  lr: 0.0006
+  lr: 0.0004
   beta1: 0.9
   beta2: 0.98
   weight_decay: 0
 
 lr_scheduler_args:
   scheduler_cls: lr_scheduler.scheduler.WarmupLR
-  warmup_steps: 1000
-  min_lr: 0.0001
+  warmup_steps: 10000
+  min_lr: 0.00005
 
 
 
-max_key_shift: 2
-min_key_shift: 0.8
+max_key_shift: 1.6
+min_key_shift: 0.7
 
 use_mel_speed_shift: true
 mel_speed_shift_prob: 0.1
@@ -112,25 +116,30 @@ mel_speed_shift_min: 0.5
 
 use_mel_key_shift: true
 mel_key_shift_prob: 0.1
-mel_key_shift_min: -12
-mel_key_shift_max: 12
-music_mix_min: 0.55
+mel_key_shift_min: -6
+mel_key_shift_max: 6
+music_mix_min: 0.8
 music_mix_max: 0.95
 
+music_volume_aug: true
+music_volume_aug_prob: 0.5
+
+
+
 use_empty_voice: true
-empty_voice_prob: 0.05
+empty_voice_prob: 0.1
 voice_volume_aug: true
-voice_volume_aug_prob: 0.1
+voice_volume_aug_prob: 0.05
 
 
 grad_accum_steps: 1
-max_update: 9999990
-val_step: 40000
+max_update: 200000
+val_step: 20000
 keep_ckpt_num: 8
 progress_bar_type: tqdm #tqdm #rich
 batch_size: 32
 train_dataloader_prefetch_factor: 4
-num_train_dataloader_workers: 6
+num_train_dataloader_workers: 10
 val_dataloader_prefetch_factor: 2
 num_val_dataloader_workers: 2
 
@@ -144,9 +153,14 @@ finetune_strict_shapes: true
 freezing_enabled: false
 frozen_params: []
 
-pad_strategy: middle #min max middle
+pad_strategy: min #min max middle
 
 prob_voice: 0.5
+
+music_key_shift_aug: true
+music_key_shift_aug_prob: 0.5
+music_max_key_shift: 1.7
+music_min_key_shift: 0.7
 
 
 

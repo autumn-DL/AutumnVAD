@@ -1,22 +1,16 @@
 train_data_index_path:
-  - datas/sc.tsv
-  - datas/rp.tsv
-  - datas/hifiw.tsv
-  - datas/hifiwf.tsv
-  - datas/voice_s2.tsv
-  - datas/Nvoice.tsv
+  - sc.tsv
+  - rp.tsv
+  - hifiw.tsv
+  - hifiwf.tsv
 val_data_index_path:
-  - datas/sc1.tsv
+  - sc1.tsv
 
 misc_data_index_path:
-  - datas/mus5.tsv
-  - datas/addmusic2.tsv
-  - datas/addmusic3.tsv
-  - datas/music_cut.tsv
-  - datas/Vmusic.tsv
+  - mus5.tsv
 
 binary_index_name: data
-binary_index_dir: dataV2
+binary_index_dir: data
 pre_data_type: VAD
 
 pl_trainer_accelerator: 'auto'
@@ -25,16 +19,17 @@ pl_trainer_devices: 'auto'
 pl_trainer_precision: 'bf16'
 pl_trainer_num_nodes: 1
 seed: 114514
-task_cls: trainCLS.VADCLS.VADCLS
+task_cls: trainCLS.VADCLS_V2_wav.VADCLS
 model_arg:
   encoder_conform_dim: 512
   encoder_conform_kernel_size: 31
-  encoder_conform_ffn_latent_drop: 0.1
-  encoder_conform_ffn_out_drop: 0.1
+  encoder_conform_ffn_latent_drop: 0.05
+  encoder_conform_ffn_out_drop: 0.05
   num_layers: 6
+
   use_final_norm: true
-  norm_type: an
-  mel_scal: 7
+  norm_type: pre_n
+  mel_scal: 1
 
 pl_trainer_strategy:
   name: auto
@@ -44,7 +39,7 @@ nccl_p2p: true
 
 audio_sample_rate: 44100
 #audio_num_mel_bins: 128
-audio_num_mel_bins: 80
+audio_num_mel_bins: 1024
 hop_size: 882            # Hop size.
 fft_size: 2048           # FFT size.
 win_size: 2048           # FFT size.
@@ -52,8 +47,8 @@ fmin: 40
 fmax: 8000
 
 max_mel_farms: null
-rms_win_size: 2048
-DB_rms: -45
+rms_win_size: 1024
+DB_rms: -40
 
 add_music_prob: 0.8
 add_music: true
@@ -64,10 +59,10 @@ key_shift_aug: true
 #noise_aug_prob: 0.8
 use_noise_aug: true
 noise_aug:
-  use_noise_aug_probability: 0.2
+  use_noise_aug_probability: 0.45
   noise_config:
     - NoiseType: gaussian
-      probability: 0.1
+      probability: 0.3
       NoiseArgs:
         - name: mean
           value: 0
@@ -76,7 +71,7 @@ noise_aug:
           UseRandomValue: true
         - name: std
           value: 1
-          min: 0.5
+          min: 0.7
           max: 1.2
           UseRandomValue: true
         - name: noise_level
@@ -92,6 +87,20 @@ noise_aug:
           min: 0.0005
           max: 0.01
           UseRandomValue: true
+    - NoiseType: poisson_noise
+      probability: 0.1
+      NoiseArgs:
+        - name: noise_level
+          value: 0.001
+          min: 0.0005
+          max: 0.01
+          UseRandomValue: true
+        - name: lam
+          value: 1
+          min: 0.8
+          max: 1.1
+          UseRandomValue: true
+
 
       # {'NoiseType': 1, 'probability': 0.1,
       #  'NoiseArgs': [{'name': 'xxx', 'value': 0.2, 'min': 0.02, 'max': 0.1, 'UseRandomValue': True}]}
@@ -99,21 +108,20 @@ noise_aug:
 
 optimizer_args:
   optimizer_cls: torch.optim.AdamW
-  lr: 0.0004
+  lr: 0.00045
   beta1: 0.9
   beta2: 0.98
   weight_decay: 0
 
 lr_scheduler_args:
   scheduler_cls: lr_scheduler.scheduler.WarmupLR
-  warmup_steps: 5000
+  warmup_steps: 10000
   min_lr: 0.00005
 
-music_volume_aug: true
-music_volume_aug_prob: 0.05
 
-max_key_shift: 2
-min_key_shift: 0.8
+
+max_key_shift: 1.6
+min_key_shift: 0.7
 
 use_mel_speed_shift: true
 mel_speed_shift_prob: 0.1
@@ -124,23 +132,28 @@ use_mel_key_shift: true
 mel_key_shift_prob: 0.1
 mel_key_shift_min: -6
 mel_key_shift_max: 6
-music_mix_min: 0.3
-music_mix_max: 0.9
+music_mix_min: 0.7
+music_mix_max: 0.99
+
+music_volume_aug: true
+music_volume_aug_prob: 0.5
+
+
 
 use_empty_voice: true
-empty_voice_prob: 0.05
+empty_voice_prob: 0.1
 voice_volume_aug: true
-voice_volume_aug_prob: 0.1
+voice_volume_aug_prob: 0.05
 
 
 grad_accum_steps: 1
-max_update: 200000
+max_update: 600000
 val_step: 20000
-keep_ckpt_num: 8
+keep_ckpt_num: 30
 progress_bar_type: tqdm #tqdm #rich
 batch_size: 32
 train_dataloader_prefetch_factor: 4
-num_train_dataloader_workers: 6
+num_train_dataloader_workers: 8
 val_dataloader_prefetch_factor: 2
 num_val_dataloader_workers: 2
 
@@ -155,6 +168,13 @@ freezing_enabled: false
 frozen_params: []
 
 pad_strategy: min #min max middle
+
+prob_voice: 0.5
+
+music_key_shift_aug: true
+music_key_shift_aug_prob: 0.5
+music_max_key_shift: 1.7
+music_min_key_shift: 0.7
 
 
 

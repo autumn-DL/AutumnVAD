@@ -23,6 +23,33 @@ def wav_aug(wav, hop_size, speed=1.):
     return torchaudio.transforms.Resample(orig_freq=orig_freq, new_freq=new_freq)(wav)
 
 
+
+@torch.no_grad()
+def get_music_chunk(
+        y,
+        *,
+        frame_length=2048,
+        hop_length=512,
+        pad_mode="constant",
+):
+    '''
+
+    :param y: T
+    :param frame_length: int
+    :param hop_length: int
+    :param pad_mode:
+    :return: T
+    '''
+    # padding = (int(frame_length // 2), int(frame_length // 2))
+    padding= (int((frame_length - hop_length) // 2),
+                int((frame_length - hop_length+1) // 2))
+
+    y=torch.nn.functional.pad(y, padding, pad_mode)
+    y_f=y.unfold(0, frame_length, hop_length)
+
+    return y_f
+
+
 class collater:
     def __init__(self, config, infer=False):
         super().__init__()
@@ -165,6 +192,14 @@ class VAD_DataSet_norm(Dataset):
         self.voice_volume_aug_prob = config['voice_volume_aug_prob']
         self.voice_volume_aug = config['voice_volume_aug']
 
+        self.music_volume_aug=config['music_volume_aug']
+        self.music_volume_aug_prob=config['music_volume_aug_prob']
+
+        self.music_key_shift_aug_prob = config.get('music_key_shift_aug_prob',0.5)
+        self.music_key_shift_aug = config.get('music_key_shift_aug',False)
+        self.music_max_key_shift = config.get('music_max_key_shift',1.4)
+        self.music_min_key_shift = config.get('music_min_key_shift',0.7)
+
     def pre_music(self,lens,music):
         ml=len(music)
         if lens>ml:
@@ -180,7 +215,8 @@ class VAD_DataSet_norm(Dataset):
         return voice + music
 
     def volume_augmentation(self, voice, ):
-
+        if voice.numel() == 0:
+            return voice
         max_amp = float(torch.max(torch.abs(voice))) + 1e-5
         max_shift = min(3, np.log(1 / max_amp))
         log_mel_shift = random.uniform(-3, max_shift)
@@ -222,6 +258,11 @@ class VAD_DataSet_norm(Dataset):
             music = torch.unsqueeze(music[0], 0)
             if sr_music != self.sr:
                 music = torchaudio.transforms.Resample(orig_freq=sr_music, new_freq=self.sr)(music)
+            if self.music_volume_aug and random.random() < self.music_volume_aug_prob:
+                music = self.volume_augmentation(music)
+            if self.music_key_shift_aug and random.random() < self.music_key_shift_aug_prob and  music.numel() > self.hop_size*2:
+                key_s = random.uniform(self.music_min_key_shift, self.music_max_key_shift)
+                music = wav_aug(music, self.hop_size, speed=key_s)
             voice[0] = self.audio_mix(voice[0], music[0], rate)
         if self.volume_aug and random.random() < self.volume_aug_prob:
             voice = self.volume_augmentation(voice)
@@ -245,3 +286,66 @@ class VAD_DataSet_norm(Dataset):
     def collater(self):
         co = collater(config=self.config, infer=self.infer)
         return co.collater_fn
+
+class VAD_DataSet_wav(VAD_DataSet_norm):
+    def __init__(self,config,infer=False):
+        super().__init__(config=config,infer=infer)
+
+    def __getitem__(self, index):
+        data_path = self.datapath[index]
+        voice, sr_voice = torchaudio.load(data_path)
+        voice=torch.unsqueeze(voice[0],0)
+        if sr_voice != self.sr:
+            voice = torchaudio.transforms.Resample(orig_freq=sr_voice, new_freq=self.sr)(voice)
+        if self.max_mel_farms is not  None and not self.infer:
+            Lvocie=len(voice[0])
+            start = np.random.randint(0, Lvocie - self.max_mel_farms*self.melhop)
+            voice=voice[:,start:start+self.max_mel_farms*self.melhop]
+            # voice=voice[:self.max_mel_farms*self.melhop]
+
+        if self.key_shift_aug and random.random() < self.key_shift_aug_prob and not self.infer:
+            key_s = random.uniform(self.min_key_shift, self.max_key_shift)
+            voice = wav_aug(voice, self.hop_size, speed=key_s)
+
+        RMSX = get_rms(voice[0], frame_length=self.rms_win,
+                       hop_length=self.rms_hop, )
+        if self.voice_volume_aug and random.random() < self.voice_volume_aug_prob:
+            voice = self.volume_augmentation(voice)
+        if self.use_empty_voice and random.random() < self.empty_voice_prob:
+            voice = torch.randn_like(voice)*1e-5
+            target = torch.ones_like(RMSX).long()
+        else:
+            target = (RMSX < self.rmsa).long()
+        if self.add_music and random.random() < self.add_music_prob:
+            music_path = self.music_datapath[random.randint(0, self.music_len - 1)]
+            rate = random.uniform(self.music_mix_min, self.music_mix_max)
+            music, sr_music = torchaudio.load(music_path)
+            music = torch.unsqueeze(music[0], 0)
+            if sr_music != self.sr:
+                music = torchaudio.transforms.Resample(orig_freq=sr_music, new_freq=self.sr)(music)
+            if self.music_volume_aug and random.random() < self.music_volume_aug_prob:
+                music = self.volume_augmentation(music)
+            # if self.music_key_shift_aug and random.random() < self.music_key_shift_aug_prob and  music.numel() > self.hop_size*8:
+            #     key_s = random.uniform(self.music_min_key_shift, self.music_max_key_shift)
+            #     music = wav_aug(music, self.hop_size, speed=key_s)
+            voice[0] = self.audio_mix(voice[0], music[0], rate)
+        if self.volume_aug and random.random() < self.volume_aug_prob:
+            voice = self.volume_augmentation(voice)
+        if self.use_noise_aug:
+            voice = self.noise_aug_obj.add_noise(voice)
+
+        speed = 1
+        keys = 0
+        # if self.use_mel_speed_shift and random.random() < self.mel_speed_shift_prob:
+        #     speed = random.uniform(self.mel_speed_shift_min, self.mel_speed_shift_max)
+        if self.use_mel_key_shift and random.random() < self.mel_key_shift_prob:
+            keys = random.uniform(self.mel_key_shift_min, self.mel_key_shift_max)
+
+        # mels = self.wav2mel.dynamic_range_compression_torch(self.wav2mel(voice, speed=speed, key_shift=keys),
+        #                                                     clip_val=1e-6)
+        # voice = torchaudio.transforms.Resample(orig_freq=self.sr, new_freq=16000)(voice)
+        # voice=torchaudio.transforms.Resample(orig_freq=16000, new_freq=self.sr)(voice)
+        mels=get_music_chunk(y=voice[0],frame_length=self.rms_win, hop_length=self.rms_hop)
+        return {'mel': mels, 'target': target}
+
+

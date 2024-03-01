@@ -62,6 +62,18 @@ def export(exp_name, ckpt_path, save_path, work_dir,wav_path):
     mel=torch.transpose(mel,1,2)
     P = model(mel.cuda())
     P=torch.sigmoid(P)
+
+    PF=P
+    sxp=PF.cpu().numpy()[0][0]
+    from matplotlib import pyplot as plt
+    x = range(len(sxp))
+    y = sxp
+
+    # 绘图
+    plt.plot(x, y)
+    # 展示图形
+    plt.show()
+
     P1=F.interpolate(P,scale_factor=config['hop_size'],mode='linear')[0]
     P1=(P1>0.5).long()
     PR=len(P1[0])

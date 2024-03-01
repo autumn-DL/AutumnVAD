@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from dataset_s.VADdataset import VAD_DataSet_norm
+from dataset_s.VADdataset import VAD_DataSet_wav
 from models.CVNT import CVNT
 from trainCLS.baseCLS import BasicCLS
 from lib.plot import spec_probs_to_figure
@@ -14,8 +14,8 @@ class VADCLS(BasicCLS):
         super().__init__(config=config)
         self.model = CVNT(config,output_size=1)
 
-        self.train_dataset = VAD_DataSet_norm(config=config, infer=False)
-        self.val_dataset = VAD_DataSet_norm(config=config, infer=True)
+        self.train_dataset = VAD_DataSet_wav(config=config, infer=False)
+        self.val_dataset = VAD_DataSet_wav(config=config, infer=True)
         self.loss = torch.nn.BCEWithLogitsLoss()
 
     def forward(self, x, mask=None):
