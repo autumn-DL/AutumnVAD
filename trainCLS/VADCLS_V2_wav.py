@@ -60,9 +60,10 @@ class VADCLS(BasicCLS):
 
         name_prefix = 'mel'
         P=torch.sigmoid(P)
+        P1=P
         P=(P>self.config['prob_voice']).long()[0].cpu()[0]
         fig = spec_probs_to_figure(spec=batch['mel'][0].cpu(), prob_gt=batch['target'].long()[0].cpu(),
-                                   prob_pred=P)
+                                   prob_pred=P,prob_predP=P1[0].cpu()[0],linewidth=2)
         self.logger.experiment.add_figure(f'{name_prefix}_{batch_idx}', fig, global_step=self.opt_step)
 
         return {'val_loss': losses}

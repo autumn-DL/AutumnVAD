@@ -17,7 +17,7 @@ def spec_to_figure(spec, vmin=None, vmax=None):
     return fig
 
 
-def spec_probs_to_figure(spec, prob_gt, prob_pred=None, vmin=None, vmax=None):
+def spec_probs_to_figure(spec, prob_gt, prob_pred=None,prob_predP=None, vmin=None, vmax=None,linewidth=2):
     if isinstance(spec, torch.Tensor):
         spec = spec.cpu().numpy()
     fig = plt.figure(figsize=(12, 5))
@@ -26,12 +26,17 @@ def spec_probs_to_figure(spec, prob_gt, prob_pred=None, vmin=None, vmax=None):
     if prob_pred is not None:
         plt.plot(
             np.clip(prob_pred * spec.shape[-1], a_min=shrink, a_max=spec.shape[-1] - shrink),
-            color='r', label='pred', linewidth=2
+            color='r', label='pred', linewidth=linewidth
         )
     plt.plot(
         np.clip(prob_gt * spec.shape[-1], a_min=shrink, a_max=spec.shape[-1] - shrink),
-        color='b', label='gt', linewidth=2
+        color='b', label='gt', linewidth=linewidth
     )
+    if prob_predP is not None:
+        plt.plot(
+            np.clip(prob_predP * spec.shape[-1], a_min=shrink, a_max=spec.shape[-1] - shrink),
+            color='g', label='predP', linewidth=linewidth
+        )
     plt.tight_layout()
     return fig
 

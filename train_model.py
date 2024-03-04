@@ -51,9 +51,10 @@ def train(config, exp_name, work_dir):
     cls_name = config["task_cls"].split(".")[-1]
     task_cls = getattr(importlib.import_module(pkg), cls_name)
     # assert issubclass(task_cls, training.BaseTask), f'Task class {task_cls} is not a subclass of {training.BaseTask}.'
-
+    # import torch._dynamo
+    # torch._dynamo.config.suppress_errors = True
     task = task_cls(config=config)
-
+    # task=torch.compile(task)
     # work_dir = pathlib.Path(config['work_dir'])
     trainer = norm_trainer.NormTrainer(
         accelerator=config['pl_trainer_accelerator'],

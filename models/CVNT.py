@@ -76,8 +76,65 @@ class conform_blocke_with_attn_post(nn.Module):
         x = self.norm1(self.ffn1(x) + x)
         x = self.norm3(self.conv(x) + x)
         x = self.norm4(self.ffn2(x) + x)
+        if mask is not None:
+            x = x.masked_fill(~mask.unsqueeze(-1), 0)
         return x
 
+
+class conform_blocke_full(nn.Module):
+    def __init__(self, dim: int, kernel_size: int = 31, conv_drop: float = 0.1, ffn_latent_drop: float = 0.1,
+                 ffn_out_drop: float = 0.1, attention_drop: float = 0.1, attention_heads: int = 4,
+                 attention_heads_dim: int = 64):
+        super().__init__()
+        self.ffn1 = conform_ffn(dim, ffn_latent_drop, ffn_out_drop)
+        self.ffn2 = conform_ffn(dim, ffn_latent_drop, ffn_out_drop)
+        self.att = Attention(dim, heads=attention_heads, dim_head=attention_heads_dim)
+        self.attdrop = nn.Dropout(attention_drop) if attention_drop > 0. else nn.Identity()
+        self.conv = conform_conv(dim, kernel_size=kernel_size,
+
+                                 DropoutL=conv_drop, )
+        self.norm1 = nn.LayerNorm(dim)
+        self.norm2 = nn.LayerNorm(dim)
+        self.norm3 = nn.LayerNorm(dim)
+        self.norm4 = nn.LayerNorm(dim)
+        # self.norm5 = nn.LayerNorm(dim)
+
+    def forward(self, x, mask=None, ):
+        x = self.ffn1(self.norm1(x)) * 0.5 + x
+
+        x = self.attdrop(self.att(self.norm2(x), mask=mask)) + x
+        # x = self.norm1(self.ffn1(x) + x)
+        x = self.conv(self.norm3(x)) + x
+        x = self.ffn2(self.norm4(x)) * 0.5 + x
+        if mask is not None:
+            x = x.masked_fill(~mask.unsqueeze(-1), 0)
+        return x
+class Attention_blocke_full(nn.Module):
+    def __init__(self, dim: int, kernel_size: int = 31, conv_drop: float = 0.1, ffn_latent_drop: float = 0.1,
+                 ffn_out_drop: float = 0.1, attention_drop: float = 0.1, attention_heads: int = 4,
+                 attention_heads_dim: int = 64):
+        super().__init__()
+        # self.ffn1 = conform_ffn(dim, ffn_latent_drop, ffn_out_drop)
+        self.ffn2 = conform_ffn(dim, ffn_latent_drop, ffn_out_drop)
+        self.att = Attention(dim, heads=attention_heads, dim_head=attention_heads_dim)
+        self.attdrop = nn.Dropout(attention_drop) if attention_drop > 0. else nn.Identity()
+
+        # self.norm1 = nn.LayerNorm(dim)
+        self.norm2 = nn.LayerNorm(dim)
+        # self.norm3 = nn.LayerNorm(dim)
+        self.norm4 = nn.LayerNorm(dim)
+        # self.norm5 = nn.LayerNorm(dim)
+
+    def forward(self, x, mask=None, ):
+
+
+        x = self.attdrop(self.att(self.norm2(x), mask=mask)) + x
+        # x = self.norm1(self.ffn1(x) + x)
+
+        x = self.ffn2(self.norm4(x))  + x
+        if mask is not None:
+            x = x.masked_fill(~mask.unsqueeze(-1), 0)
+        return x
 
 class conform_blocke_ECA(nn.Module):
     def __init__(self, dim: int, kernel_size: int = 31, conv_drop: float = 0.1, ffn_latent_drop: float = 0.1,
@@ -184,7 +241,30 @@ class CVNT(nn.Module):
                 attention_heads_dim=model_arg['encoder_conform_attention_heads_dim']
 
             ) for _ in range(model_arg['num_layers'])])
+        elif norm_type == 'FULL_CF':
+            self.enc = nn.ModuleList([conform_blocke_full(
+                dim=model_arg['encoder_conform_dim'],
+                kernel_size=model_arg['encoder_conform_kernel_size'],
+                ffn_latent_drop=model_arg['encoder_conform_ffn_latent_drop'],
+                ffn_out_drop=model_arg['encoder_conform_ffn_out_drop'],
 
+                attention_drop=model_arg['encoder_conform_attention_drop'],
+                attention_heads=model_arg['encoder_conform_attention_heads'],
+                attention_heads_dim=model_arg['encoder_conform_attention_heads_dim']
+
+            ) for _ in range(model_arg['num_layers'])])
+        elif norm_type == 'FULL_attn':
+            self.enc = nn.ModuleList([Attention_blocke_full(
+                dim=model_arg['encoder_conform_dim'],
+                kernel_size=model_arg['encoder_conform_kernel_size'],
+                ffn_latent_drop=model_arg['encoder_conform_ffn_latent_drop'],
+                ffn_out_drop=model_arg['encoder_conform_ffn_out_drop'],
+
+                attention_drop=model_arg['encoder_conform_attention_drop'],
+                attention_heads=model_arg['encoder_conform_attention_heads'],
+                attention_heads_dim=model_arg['encoder_conform_attention_heads_dim']
+
+            ) for _ in range(model_arg['num_layers'])])
         self.outlinear = nn.Linear(model_arg['encoder_conform_dim'], output_size)
         self.use_final_norm = model_arg.get('use_final_norm', False)
         self.mel_scal = model_arg.get('mel_scal', 1)

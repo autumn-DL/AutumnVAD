@@ -56,8 +56,8 @@ class VADCLS(BasicCLS):
 
 
         name_prefix = 'mel'
-        fig = spec_probs_to_figure(spec=batch['mel'][0].cpu(), prob_gt=batch['target'].long()[0].cpu(),
-                                   prob_pred=P.argmax(dim=1).long()[0].cpu())
+        fig = spec_probs_to_figure(spec=batch['mel'][0].cpu().numpy(), prob_gt=batch['target'].long()[0].cpu().numpy(),
+                                   prob_pred=P.argmax(dim=1).long()[0].cpu().numpy())
         self.logger.experiment.add_figure(f'{name_prefix}_{batch_idx}', fig, global_step=self.opt_step)
 
         return {'val_loss': losses}
